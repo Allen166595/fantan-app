@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>番攤助手-重置修復版</title>
+    <title>番攤助手-全面監控版</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
-        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 440px; margin: auto; border-top: 8px solid #28a745; }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 480px; margin: auto; border-top: 8px solid #28a745; }
         .win-gold { border-top: 8px solid #ffd700; background: #fffdf0; }
         .danger-mode { border-top: 8px solid #dc3545; background: #fff5f5; }
         .strategy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
@@ -20,13 +20,16 @@
         .info-box { padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ddd; display: none; font-size: 13px; font-weight: bold; }
         .danger-box { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
         .warning-box { background: #fff3cd; color: #856404; }
-        .log { font-size: 12px; color: #666; height: 110px; overflow-y: scroll; border: 1px solid #ddd; padding: 5px; margin-top: 10px; background: #fafafa; text-align: left; }
+        .log { font-size: 13px; color: #333; height: 180px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; margin-top: 10px; background: #fafafa; text-align: left; font-family: monospace; }
+        .log-win { color: #28a745; font-weight: bold; }
+        .log-loss { color: #dc3545; }
+        .mdd-text { color: #dc3545; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="main-card" class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
-            <span style="font-weight: bold;">智慧助手 (重置修復版)</span>
+            <span style="font-weight: bold;">智慧助手 (全面監控版)</span>
             <span style="color:#007bff; font-weight:bold;">第 <span id="display-round">0</span> 局</span>
         </div>
 
@@ -56,39 +59,38 @@
                 <span>餘額：<span id="current-balance" style="font-weight:bold; color:#007bff;">10000</span></span>
                 <span>盈虧: <span id="total-profit" style="font-weight:bold;">0.0</span></span>
             </div>
-            <div style="display:flex; justify-content:space-between; color:#d9534f; font-weight:bold;">
-                <span>最大回撤: <span id="mdd-val">0%</span></span>
-                <span>獲利率: <span id="p-percent">0%</span></span>
+            <div style="display:flex; justify-content:space-between;">
+                <span class="mdd-text">最大回撤(MDD): <span id="mdd-percent">0%</span></span>
+                <span>最高峰值: <span id="peak-val">0</span></span>
             </div>
         </div>
+        
+        <div style="text-align: left; font-size: 12px; font-weight: bold; margin-top: 10px; color: #666;">📝 實戰回顧記錄 (格式：注碼/押角/結果/盈虧/餘額)：</div>
         <div class="log" id="log">--- 等待第一局開獎 ---</div>
-        <button style="background:#6c757d; margin-top:10px; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer;" onclick="init()">🔁 徹底清零數據與解鎖</button>
+        
+        <button style="background:#6c757d; margin-top:10px; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer;" onclick="init()">🔁 數據徹底清零與解鎖</button>
     </div>
 
     <script>
         let baseCapital = 10000;
         let ladder = [100, 300, 700, 1500, 3100];
         let round, currentStep, totalProfit, counts, history, currentStrat;
-        let peakProfit, maxDD, isPaused, winTargetReached, currentTarget;
+        let peakProfit, maxDrawdown, isPaused, winTargetReached, currentTarget;
 
         function init() {
-            // 1. 重置數據變數
             round = 0; currentStep = 0; totalProfit = 0;
             counts = {1: 0, 2: 0, 3: 0, 4: 0};
-            history = []; peakProfit = 0; maxDD = 0;
+            history = []; peakProfit = 0; maxDrawdown = 0;
             isPaused = false; winTargetReached = false;
             currentTarget = [1, 2];
             
-            // 2. 徹底清理 UI 警告
-            showWarning("", ""); // 隱藏警告框
-            enableButtons();      // 解除按鈕鎖定
-            document.getElementById('main-card').className = "card"; // 恢復綠色頂邊
+            showWarning("", "");
+            enableButtons();
+            document.getElementById('main-card').className = "card";
             
-            // 3. 恢復初始策略與更新顯示
             setStrat('A');
             updateUI();
-            
-            document.getElementById('log').innerHTML = "--- 數據已重置並解鎖 ---";
+            document.getElementById('log').innerHTML = "--- 數據已重置 ---";
         }
 
         function setStrat(s) {
@@ -121,8 +123,9 @@
 
             let nextBet = ladder[currentStep];
             let currentBalance = baseCapital + totalProfit;
+            let currentTargetText = "角 " + currentTarget.join(", ");
 
-            // 餘額檢查
+            // 餘額熔斷檢查
             if (!isPaused && currentBalance < nextBet) {
                 showWarning(`🔴 餘額不足！剩餘 ${currentBalance.toFixed(0)}，無法支付注碼 ${nextBet}`, "danger-box");
                 disableButtons();
@@ -131,14 +134,27 @@
             }
 
             let isWin = currentTarget.includes(num);
+            let roundProfit = 0;
+            
             if (!isPaused) {
-                let roundProfit = isWin ? (nextBet * 0.95) : -nextBet;
+                roundProfit = isWin ? (nextBet * 0.95) : -nextBet;
                 totalProfit += roundProfit;
+                
+                // 更新 MDD
+                if (totalProfit > peakProfit) peakProfit = totalProfit;
+                let currentDD = peakProfit - totalProfit;
+                if (currentDD > maxDrawdown) maxDrawdown = currentDD;
+                
+                // 記錄 Log
+                writeLog(round + 1, nextBet, currentTargetText, num, isWin, roundProfit);
+                
                 if (isWin) currentStep = 0;
                 else {
                     currentStep++;
                     if (currentStep >= ladder.length) currentStep = 0;
                 }
+            } else {
+                writeLog(round + 1, 0, "暫停", num, false, 0);
             }
 
             history.push(num);
@@ -153,12 +169,40 @@
                 isPaused = false; currentStep = 0; showWarning("");
             }
 
-            if (totalProfit > peakProfit) peakProfit = totalProfit;
-            maxDD = Math.max(maxDD, peakProfit - totalProfit);
             if (totalProfit >= 5000) winTargetReached = true;
 
             calculateTarget();
-            updateUI(num, isWin);
+            updateUI();
+        }
+
+        function writeLog(r, bet, target, openNum, win, profit) {
+            let logBox = document.getElementById('log');
+            if (logBox.innerHTML.includes("---")) logBox.innerHTML = "";
+            let balance = baseCapital + totalProfit;
+            let winChar = win ? "✅" : "❌";
+            let profitDisplay = profit > 0 ? `+${profit.toFixed(0)}` : `${profit.toFixed(0)}`;
+            let profitClass = profit > 0 ? "log-win" : "log-loss";
+            
+            let line = `<div>(${r}) 下注 ${bet} 押 ${target} 開:${openNum} | ${winChar} <span class="${profitClass}">${profitDisplay}</span> | 餘額:${balance.toFixed(0)}</div>`;
+            logBox.innerHTML = line + logBox.innerHTML;
+        }
+
+        function updateUI() {
+            let balance = baseCapital + totalProfit;
+            document.getElementById('display-round').innerText = round;
+            document.getElementById('current-balance').innerText = balance.toFixed(0);
+            document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
+            document.getElementById('peak-val').innerText = peakProfit.toFixed(0);
+            
+            // 計算 MDD %
+            let mddPercent = (maxDrawdown / (baseCapital + peakProfit)) * 100;
+            document.getElementById('mdd-percent').innerText = mddPercent.toFixed(1) + "%";
+
+            refreshNextBetDisplay();
+            if (winTargetReached) {
+                document.getElementById('main-card').className = "card win-gold";
+                showWarning("🏆 達成止贏目標！建議收工", "warning-box");
+            }
         }
 
         function refreshNextBetDisplay() {
@@ -167,37 +211,10 @@
             else document.getElementById('next-bet').innerText = ladder[currentStep];
         }
 
-        function updateUI(num, isWin) {
-            let balance = baseCapital + totalProfit;
-            document.getElementById('display-round').innerText = round;
-            document.getElementById('current-balance').innerText = balance.toFixed(0);
-            document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
-            document.getElementById('p-percent').innerText = (totalProfit / 100).toFixed(1) + "%";
-            document.getElementById('mdd-val').innerText = (maxDD / 100).toFixed(1) + "%";
-            
-            refreshNextBetDisplay();
-
-            if (winTargetReached) {
-                document.getElementById('main-card').className = "card win-gold";
-                showWarning("🏆 達成止贏目標！建議收工", "warning-box");
-            }
-
-            if (num !== undefined) {
-                let logBox = document.getElementById('log');
-                let statusChar = isPaused ? "✋" : (isWin ? "✅" : "❌");
-                logBox.innerHTML = `<div>[${round}] 開:${num} | ${statusChar} | 餘額:${balance.toFixed(0)}</div>` + logBox.innerHTML;
-            }
-        }
-
         function showWarning(m, cls) {
             let b = document.getElementById('status-warning');
-            if (m) { 
-                b.style.display = 'block'; 
-                b.innerText = m; 
-                b.className = "info-box " + cls; 
-            } else { 
-                b.style.display = 'none'; 
-            }
+            if (m) { b.style.display = 'block'; b.innerText = m; b.className = "info-box " + cls; }
+            else { b.style.display = 'none'; }
         }
 
         function disableButtons() {
