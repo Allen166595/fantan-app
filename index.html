@@ -3,191 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>番攤助手-局數統計版</title>
+    <title>番攤助手-重置修復版</title>
     <style>
         body { font-family: sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
-        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; border-top: 8px solid #28a745; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 440px; margin: auto; border-top: 8px solid #28a745; }
         .win-gold { border-top: 8px solid #ffd700; background: #fffdf0; }
+        .danger-mode { border-top: 8px solid #dc3545; background: #fff5f5; }
+        .strategy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .strategy-btn { background: #e9ecef; border: 1px solid #ddd; padding: 10px; font-size: 13px; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        .strategy-btn.active { background: #007bff; color: white; border-color: #0056b3; }
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px 0; }
-        button { padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; background: #28a745; color: white; font-weight: bold; }
-        button:active { background: #1e7e34; }
-        .status { margin-top: 15px; text-align: left; line-height: 1.6; display: flex; justify-content: space-between; flex-wrap: wrap; }
-        .highlight { color: #d9534f; font-weight: bold; font-size: 1.3em; }
-        .info-box { padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ddd; display: none; font-size: 14px; font-weight: bold; }
-        .pause-style { background: #fff3cd; color: #856404; }
-        .attack-style { background: #d1ecf1; color: #0c5460; }
-        .win-style { background: #d4edda; color: #155724; display: block !important; }
-        .config-box { background: #e9ecef; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; text-align: left; }
-        .log { font-size: 12px; color: #666; height: 150px; overflow-y: scroll; border: 1px solid #ddd; padding: 5px; margin-top: 10px; background: #fafafa; text-align: left; }
-        .game-count { font-size: 1.2em; color: #007bff; font-weight: bold; }
+        button.game-btn { padding: 18px; font-size: 20px; border: none; border-radius: 8px; cursor: pointer; background: #28a745; color: white; font-weight: bold; }
+        button.game-btn:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
+        .status { margin-top: 15px; text-align: left; line-height: 1.8; border-top: 1px solid #eee; padding-top: 10px; font-size: 14px; }
+        .highlight { color: #d9534f; font-weight: bold; font-size: 1.5em; }
+        .info-box { padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ddd; display: none; font-size: 13px; font-weight: bold; }
+        .danger-box { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .warning-box { background: #fff3cd; color: #856404; }
+        .log { font-size: 12px; color: #666; height: 110px; overflow-y: scroll; border: 1px solid #ddd; padding: 5px; margin-top: 10px; background: #fafafa; text-align: left; }
     </style>
-</head> 
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#28a745">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-
+</head>
 <body>
     <div id="main-card" class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 1.1em; font-weight: bold;">番攤智慧助手</span>
-            <span class="game-count">第 <span id="display-round">0</span> 局</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
+            <span style="font-weight: bold;">智慧助手 (重置修復版)</span>
+            <span style="color:#007bff; font-weight:bold;">第 <span id="display-round">0</span> 局</span>
+        </div>
+
+        <div class="strategy-grid">
+            <button class="strategy-btn active" id="btnA" onclick="setStrat('A')">策略 A (避跳號)</button>
+            <button class="strategy-btn" id="btnB" onclick="setStrat('B')">策略 B (追龍模式)</button>
+            <button class="strategy-btn" id="btnC" onclick="setStrat('C')">策略 C (冷熱均衡)</button>
+            <button class="strategy-btn" id="btnD" onclick="setStrat('D')">策略 D (追最旺門)</button>
         </div>
         
-        <div class="config-box">
-            初始本金：<input type="number" id="base-capital" value="10000" style="width:70px" onchange="resetData()"> 
-            <br>攻守門檻: <span id="threshold-text">2000</span> (20%) | 止贏: 50%
-        </div>
-
         <div id="status-warning" class="info-box"></div>
 
-        <div id="bet-info">
-            <p>下一局注碼：<span class="highlight" id="next-bet">100</span></p>
-            <p>建議投注：<span class="highlight" id="next-target">角 1, 2</span></p>
+        <div id="bet-area">
+            <p style="margin:5px 0;">下一局注碼：<span class="highlight" id="next-bet">100</span></p >
+            <p style="margin:5px 0;">建議投注：<span class="highlight" id="next-target">角 1, 2</span></p >
         </div>
-        <hr>
+
         <div class="grid">
-            <button onclick="record(1)">1</button>
-            <button onclick="record(2)">2</button>
-            <button onclick="record(3)">3</button>
-            <button onclick="record(4)">4</button>
+            <button class="game-btn" onclick="record(1)">1</button>
+            <button class="game-btn" onclick="record(2)">2</button>
+            <button class="game-btn" onclick="record(3)">3</button>
+            <button class="game-btn" onclick="record(4)">4</button>
         </div>
+
         <div class="status">
-            <div>盈虧：<span id="total-profit" style="font-weight:bold;">0.0</span></div>
-            <div>獲利率：<span id="profit-percent" style="font-weight:bold;">0%</span></div>
+            <div style="display:flex; justify-content:space-between;">
+                <span>餘額：<span id="current-balance" style="font-weight:bold; color:#007bff;">10000</span></span>
+                <span>盈虧: <span id="total-profit" style="font-weight:bold;">0.0</span></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; color:#d9534f; font-weight:bold;">
+                <span>最大回撤: <span id="mdd-val">0%</span></span>
+                <span>獲利率: <span id="p-percent">0%</span></span>
+            </div>
         </div>
         <div class="log" id="log">--- 等待第一局開獎 ---</div>
-        <button style="background:#6c757d; margin-top:15px; color:white; border:none; padding:8px; border-radius:5px; width:100%" onclick="resetData()">🔁 數據重置</button>
+        <button style="background:#6c757d; margin-top:10px; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer;" onclick="init()">🔁 徹底清零數據與解鎖</button>
     </div>
 
     <script>
+        let baseCapital = 10000;
         let ladder = [100, 300, 700, 1500, 3100];
-        let round = 0;
-        let currentStep = 0;
-        let totalProfit = 0;
-        let missingCount = {1: 0, 2: 0, 3: 0, 4: 0};
-        let lastThree = [];
-        let nextTarget = [1, 2];
-        let isPaused = false;
-        let hasReachedWinTarget = false;
+        let round, currentStep, totalProfit, counts, history, currentStrat;
+        let peakProfit, maxDD, isPaused, winTargetReached, currentTarget;
+
+        function init() {
+            // 1. 重置數據變數
+            round = 0; currentStep = 0; totalProfit = 0;
+            counts = {1: 0, 2: 0, 3: 0, 4: 0};
+            history = []; peakProfit = 0; maxDD = 0;
+            isPaused = false; winTargetReached = false;
+            currentTarget = [1, 2];
+            
+            // 2. 徹底清理 UI 警告
+            showWarning("", ""); // 隱藏警告框
+            enableButtons();      // 解除按鈕鎖定
+            document.getElementById('main-card').className = "card"; // 恢復綠色頂邊
+            
+            // 3. 恢復初始策略與更新顯示
+            setStrat('A');
+            updateUI();
+            
+            document.getElementById('log').innerHTML = "--- 數據已重置並解鎖 ---";
+        }
+
+        function setStrat(s) {
+            currentStrat = s;
+            document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn' + s).classList.add('active');
+            calculateTarget();
+            refreshNextBetDisplay();
+        }
+
+        function calculateTarget() {
+            if (history.length === 0) { currentTarget = [1, 2]; return; }
+            let last = history[history.length - 1];
+            let sortedByMiss = [1, 2, 3, 4].sort((a, b) => counts[b] - counts[a]);
+            let sortedByFreq = [1, 2, 3, 4].sort((a, b) => getFreq(b) - getFreq(a));
+
+            if (currentStrat === 'A') currentTarget = sortedByMiss.filter(n => n !== last).slice(0, 2);
+            else if (currentStrat === 'B') currentTarget = [last, sortedByMiss.filter(n => n !== last)[0]];
+            else if (currentStrat === 'C') currentTarget = [1, 2, 3, 4].sort((a, b) => getFreq(a) - getFreq(b)).slice(0, 2);
+            else if (currentStrat === 'D') currentTarget = sortedByFreq.slice(0, 2);
+            
+            currentTarget.sort();
+            document.getElementById('next-target').innerText = "角 " + currentTarget.join(", ");
+        }
+
+        function getFreq(n) { return history.filter(x => x === n).length; }
 
         function record(num) {
-            let capital = parseFloat(document.getElementById('base-capital').value) || 10000;
-            let defenseThreshold = capital * 0.20;
-            let winTarget = capital * 0.50;
-            document.getElementById('threshold-text').innerText = defenseThreshold.toFixed(0);
+            if (winTargetReached) return;
 
-            round++;
-            lastThree.push(num);
-            if (lastThree.length > 3) lastThree.shift();
+            let nextBet = ladder[currentStep];
+            let currentBalance = baseCapital + totalProfit;
 
-            // 1. 核心邏輯：連3、連4、連5 持續核算盈虧
-            let isStreak = (lastThree.length === 3 && lastThree[0] === lastThree[1] && lastThree[1] === lastThree[2]);
-            
-            if (!hasReachedWinTarget) {
-                if (isStreak) {
-                    if (totalProfit < defenseThreshold) {
-                        isPaused = true;
-                        showStatus(`⚠️ 第 ${round} 局偵測長連！利潤不足，暫停避險`, "pause-style");
-                    } else {
-                        isPaused = false;
-                        showStatus(`🔥 第 ${round} 局偵測長連！利潤充足，繼續強攻`, "attack-style");
-                    }
-                } else if (!isPaused) {
-                    showStatus("", "");
-                }
+            // 餘額檢查
+            if (!isPaused && currentBalance < nextBet) {
+                showWarning(`🔴 餘額不足！剩餘 ${currentBalance.toFixed(0)}，無法支付注碼 ${nextBet}`, "danger-box");
+                disableButtons();
+                document.getElementById('main-card').className = "card danger-mode";
+                return;
             }
 
-            // 2. 處理下注結算
-            let betAmount = isPaused ? 0 : ladder[currentStep];
-            let isWin = false;
-            let roundProfit = 0;
-
-            if (!hasReachedWinTarget && !isPaused) {
-                isWin = nextTarget.includes(num);
-                roundProfit = isWin ? (betAmount * 0.95) : -betAmount;
+            let isWin = currentTarget.includes(num);
+            if (!isPaused) {
+                let roundProfit = isWin ? (nextBet * 0.95) : -nextBet;
                 totalProfit += roundProfit;
-
                 if (isWin) currentStep = 0;
                 else {
                     currentStep++;
                     if (currentStep >= ladder.length) currentStep = 0;
                 }
-                
-                if (totalProfit >= winTarget) hasReachedWinTarget = true;
             }
 
-            // 3. 處理暫停恢復
-            if (isPaused && num !== lastThree[lastThree.length - 2]) {
-                isPaused = false;
-                currentStep = 0;
-                showStatus("", "");
+            history.push(num);
+            round++;
+            for (let i = 1; i <= 4; i++) { if (i === num) counts[i] = 0; else counts[i]++; }
+
+            // 連號保護
+            let streak = history.length >= 3 && history.slice(-3).every(x => x === num);
+            if (streak && currentStrat !== 'B') {
+                if (totalProfit < 2000) { isPaused = true; showWarning(`⚠️ 遇連號！利潤不足，暫停防禦`, "warning-box"); }
+            } else if (isPaused && num !== history[history.length - 2]) {
+                isPaused = false; currentStep = 0; showWarning("");
             }
 
-            // 4. 更新遺漏值
-            for (let i = 1; i <= 4; i++) {
-                if (i === num) missingCount[i] = 0;
-                else missingCount[i]++;
-            }
+            if (totalProfit > peakProfit) peakProfit = totalProfit;
+            maxDD = Math.max(maxDD, peakProfit - totalProfit);
+            if (totalProfit >= 5000) winTargetReached = true;
 
-            // 5. 計算下一局目標
-            let others = [1, 2, 3, 4].filter(n => n !== num);
-            others.sort((a, b) => missingCount[b] - missingCount[a]);
-            nextTarget = [others[0], others[1]];
-
-            updateUI(num, isWin, roundProfit, betAmount);
+            calculateTarget();
+            updateUI(num, isWin);
         }
 
-        function showStatus(text, className) {
-            let box = document.getElementById('status-warning');
-            box.style.display = text ? 'block' : 'none';
-            box.className = "info-box " + className;
-            box.innerHTML = text;
+        function refreshNextBetDisplay() {
+            if (winTargetReached) document.getElementById('next-bet').innerText = "止贏";
+            else if (isPaused) document.getElementById('next-bet').innerText = "暫停";
+            else document.getElementById('next-bet').innerText = ladder[currentStep];
         }
 
-        function updateUI(num, isWin, roundProfit, betAmount) {
+        function updateUI(num, isWin) {
+            let balance = baseCapital + totalProfit;
             document.getElementById('display-round').innerText = round;
-            let pElem = document.getElementById('total-profit');
-            pElem.innerText = totalProfit.toFixed(1);
-            pElem.style.color = totalProfit >= 0 ? "green" : "red";
+            document.getElementById('current-balance').innerText = balance.toFixed(0);
+            document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
+            document.getElementById('p-percent').innerText = (totalProfit / 100).toFixed(1) + "%";
+            document.getElementById('mdd-val').innerText = (maxDD / 100).toFixed(1) + "%";
             
-            let capital = parseFloat(document.getElementById('base-capital').value) || 10000;
-            document.getElementById('profit-percent').innerText = ((totalProfit / capital) * 100).toFixed(1) + "%";
+            refreshNextBetDisplay();
 
-            if (hasReachedWinTarget) {
+            if (winTargetReached) {
                 document.getElementById('main-card').className = "card win-gold";
-                showStatus(`🏆 達成止贏目標！累積盈虧: ${totalProfit.toFixed(0)}`, "win-style");
-                document.getElementById('next-bet').innerText = "離場";
-                document.getElementById('next-target').innerText = "收工回家";
-            } else if (isPaused) {
-                document.getElementById('next-bet').innerText = "暫停";
-                document.getElementById('next-target').innerText = "等跳號";
-            } else {
-                document.getElementById('next-bet').innerText = ladder[currentStep];
-                document.getElementById('next-target').innerText = "角 " + nextTarget.sort().join(", ");
+                showWarning("🏆 達成止贏目標！建議收工", "warning-box");
             }
 
-            let logBox = document.getElementById('log');
-            if (logBox.innerText.includes("等待")) logBox.innerHTML = "";
-            let statusChar = isPaused ? "✋ 暫停" : (isWin ? "✅ 中" : "❌ 輸");
-            let logMsg = `<div>[第${round}局] 開:${num} | ${statusChar} | 盈虧:${totalProfit.toFixed(1)}</div>`;
-            logBox.innerHTML = logMsg + logBox.innerHTML;
-        }
-
-        function resetData() {
-            if (confirm("確定重置所有數據？")) {
-                round = 0; currentStep = 0; totalProfit = 0; lastThree = []; isPaused = false; hasReachedWinTarget = false;
-                missingCount = {1: 0, 2: 0, 3: 0, 4: 0};
-                document.getElementById('main-card').className = "card";
-                document.getElementById('display-round').innerText = "0";
-                document.getElementById('total-profit').innerText = "0.0";
-                document.getElementById('profit-percent').innerText = "0%";
-                showStatus("", "");
-                document.getElementById('next-bet').innerText = "100";
-                document.getElementById('next-target').innerText = "角 1, 2";
-                document.getElementById('log').innerHTML = "--- 數據已重置 ---";
+            if (num !== undefined) {
+                let logBox = document.getElementById('log');
+                let statusChar = isPaused ? "✋" : (isWin ? "✅" : "❌");
+                logBox.innerHTML = `<div>[${round}] 開:${num} | ${statusChar} | 餘額:${balance.toFixed(0)}</div>` + logBox.innerHTML;
             }
         }
+
+        function showWarning(m, cls) {
+            let b = document.getElementById('status-warning');
+            if (m) { 
+                b.style.display = 'block'; 
+                b.innerText = m; 
+                b.className = "info-box " + cls; 
+            } else { 
+                b.style.display = 'none'; 
+            }
+        }
+
+        function disableButtons() {
+            let btns = document.getElementsByClassName('game-btn');
+            for (let b of btns) b.disabled = true;
+        }
+
+        function enableButtons() {
+            let btns = document.getElementsByClassName('game-btn');
+            for (let b of btns) b.disabled = false;
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>
