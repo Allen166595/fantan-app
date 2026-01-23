@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>番攤助手-盈虧追蹤版</title>
+    <title>番攤助手-簡化報表版</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; background: #f4f7f6; padding: 15px; }
         .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; border-top: 8px solid #28a745; }
         .win-gold { border-top: 8px solid #ffd700; background: #fffdf0; }
         .strong-mode { border-top: 8px solid #17a2b8; background: #f0faff; }
-        .danger-mode { border-top: 8px solid #dc3545; background: #fff5f5; }
         .strategy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 15px; }
         .strategy-btn { background: #e9ecef; border: 1px solid #ddd; padding: 8px; font-size: 11px; cursor: pointer; border-radius: 5px; font-weight: bold; -webkit-appearance: none; }
         .strategy-btn.active { background: #007bff; color: white; border-color: #0056b3; }
@@ -28,7 +27,7 @@
 <body>
     <div id="main-card" class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
-            <span id="mode-title" style="font-weight: bold;">智慧助手 (盈虧統計強化)</span>
+            <span id="mode-title" style="font-weight: bold;">智慧助手 (簡化報表)</span>
             <span style="color:#007bff; font-weight:bold;">第 <span id="display-round">0</span> 局</span>
         </div>
 
@@ -79,11 +78,16 @@
         let ladderShort = [100, 300, 700];
         let round, currentStep, totalProfit, counts, history, currentStrat, peakProfit, maxDrawdown, winTargetReached, logData = [];
         let totalWagered = 0, totalCommission = 0, stratTracks = [];
+        let winCount = 0, loseCount = 0, pauseCount = 0;
+        let winWagered = 0, loseWagered = 0;
+        let currentTarget = [];
 
         function init() {
             round = 0; currentStep = 0; totalProfit = 0; counts = {1:0, 2:0, 3:0, 4:0};
             history = []; peakProfit = 0; maxDrawdown = 0; winTargetReached = false; logData = [];
             totalWagered = 0; totalCommission = 0; stratTracks = [];
+            winCount = 0; loseCount = 0; pauseCount = 0;
+            winWagered = 0; loseWagered = 0;
             setStrat('E');
             enableButtons();
             document.getElementById('main-card').className = "card";
@@ -106,17 +110,16 @@
                 csvContent += `${row.r},${row.strat},${row.bet},"${row.target}",${row.open},${row.profit},${row.balance}\n`; 
             });
 
-            let numCounts = {1:0, 2:0, 3:0, 4:0};
-            history.forEach(h => numCounts[h]++);
             let mddP = (maxDrawdown / (baseCapital + peakProfit)) * 100;
 
+            // --- 簡化復盤分析 ---
             csvContent += `\n--- 深度復盤分析 ---\n`;
-            csvContent += `最終餘額,${(baseCapital + totalProfit).toFixed(0)}\n`;
-            csvContent += `總盈虧,${totalProfit.toFixed(1)}\n`;
-            csvContent += `總下注流水,${totalWagered.toFixed(0)}\n`;
-            csvContent += `付出油水(5%),${totalCommission.toFixed(1)}\n`;
-            csvContent += `最高峰值,${peakProfit.toFixed(0)}\n`;
-            csvContent += `最大回撤(MDD),${mddP.toFixed(1)}%\n`;
+            csvContent += `最終餘額,${(baseCapital + totalProfit).toFixed(0)},總盈虧,${totalProfit.toFixed(1)}\n`;
+            csvContent += `最高峰值,${peakProfit.toFixed(0)},最大回撤,${mddP.toFixed(1)}%\n`;
+            csvContent += `中獎次數,${winCount},中獎流水,${winWagered.toFixed(0)}\n`;
+            csvContent += `沒中次數,${loseCount},損失流水,${loseWagered.toFixed(0)}\n`;
+            csvContent += `暫停次數,${pauseCount},總下注流水,${totalWagered.toFixed(0)}\n`;
+            csvContent += `付出油水,${totalCommission.toFixed(1)}\n`;
             
             csvContent += `\n--- 策略切換紀錄 ---\n`;
             csvContent += `序號,局數,動作,當時累計盈虧\n`;
@@ -125,10 +128,12 @@
             });
 
             csvContent += `\n--- 號碼統計 ---\n`;
+            let numCounts = {1:0, 2:0, 3:0, 4:0};
+            history.forEach(h => numCounts[h]++);
             [1,2,3,4].forEach(n => {
                 let count = numCounts[n];
                 let percent = history.length > 0 ? ((count / history.length) * 100).toFixed(1) : 0;
-                csvContent += `號碼 ${n} 開出,${count} 次 (佔比 ${percent}%)\n`;
+                csvContent += `號碼 ${n},${count} 次,佔比,${percent}%\n`;
             });
 
             const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
@@ -143,18 +148,12 @@
         function setStrat(s) {
             if (currentStrat === s && stratTracks.length > 0) return; 
             currentStrat = s;
-            // 重要修正：記錄當下的盈虧數值
-            stratTracks.push({ 
-                r: round, 
-                strat: s, 
-                profit: totalProfit.toFixed(1) 
-            });
+            stratTracks.push({ r: round, strat: s, profit: totalProfit.toFixed(1) });
             document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn' + s).classList.add('active');
             currentStep = 0; calculateTarget();
         }
 
-        // ... record, updateUI 等函數保持不變 ...
         function calculateTarget() {
             if (winTargetReached) { document.getElementById('next-target').innerText = "止贏收工"; return; }
             if (history.length === 0) {
@@ -195,14 +194,24 @@
             let currentLadder = (currentStrat === 'E') ? ladderShort : ladderFull;
             let isBetting = currentTarget && currentTarget.length > 0;
             let nextBet = isBetting ? currentLadder[currentStep] : 0;
-            if (isBetting && (baseCapital + totalProfit) < nextBet) { showWarning(`🔴 餘額不足`, "background:#f8d7da; color:#721c24;"); disableButtons(); return; }
             
             let isWin = isBetting ? currentTarget.includes(num) : false;
             let roundProfit = 0;
+            
             if (isBetting) {
                 totalWagered += nextBet;
-                if (isWin) { roundProfit = nextBet * 0.95; totalCommission += (nextBet * 0.05); } 
-                else { roundProfit = -nextBet; }
+                if (isWin) { 
+                    roundProfit = nextBet * 0.95; 
+                    totalCommission += (nextBet * 0.05);
+                    winCount++;
+                    winWagered += nextBet;
+                } else { 
+                    roundProfit = -nextBet; 
+                    loseCount++;
+                    loseWagered += nextBet;
+                }
+            } else {
+                pauseCount++;
             }
 
             totalProfit += roundProfit; 
@@ -210,12 +219,9 @@
             maxDrawdown = Math.max(maxDrawdown, peakProfit - totalProfit);
             
             logData.push({ 
-                r: round + 1, 
-                strat: currentStrat,
-                bet: nextBet, 
+                r: round + 1, strat: currentStrat, bet: nextBet, 
                 target: isBetting ? "角 " + currentTarget.join(",") : "暫停", 
-                open: num, 
-                profit: roundProfit.toFixed(1), 
+                open: num, profit: roundProfit.toFixed(1), 
                 balance: (baseCapital + totalProfit).toFixed(0)
             });
 
@@ -239,7 +245,7 @@
             let title = document.getElementById('mode-title');
             if (totalProfit >= 5000) { card.className = "card win-gold"; title.innerText = "🏆 達成止贏"; }
             else if (totalProfit >= 2000) { card.className = "card strong-mode"; title.innerText = "智慧助手 (20% 強改)"; }
-            else { card.className = "card"; title.innerText = "智慧助手 (盈虧統計強化)"; }
+            else { card.className = "card"; title.innerText = "智慧助手 (簡化報表)"; }
             document.getElementById('display-round').innerText = round;
             document.getElementById('current-balance').innerText = (baseCapital + totalProfit).toFixed(0);
             document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
@@ -263,3 +269,4 @@
     </script>
 </body>
 </html>
+
