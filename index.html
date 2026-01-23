@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>番攤助手-策略完全版</title>
+    <title>番攤助手-深度版</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; background: #f4f7f6; padding: 15px; }
         .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; border-top: 8px solid #28a745; }
@@ -13,8 +13,8 @@
         .strategy-btn { background: #e9ecef; border: 1px solid #ddd; padding: 8px; font-size: 11px; cursor: pointer; border-radius: 5px; font-weight: bold; }
         .strategy-btn.active { background: #007bff; color: white; border-color: #0056b3; }
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px 0; }
-        button.game-btn { padding: 18px; font-size: 20px; border: none; border-radius: 8px; cursor: pointer; background: #28a745; color: white; font-weight: bold; }
-        button.game-btn:disabled { background: #ccc !important; }
+        button.game-btn { padding: 18px; font-size: 20px; border: none; border-radius: 8px; cursor: pointer; background: #28a745; color: white; font-weight: bold; width: 100%; }
+        button.game-btn:disabled { background: #ccc !important; cursor: not-allowed; }
         .status { margin-top: 15px; text-align: left; line-height: 1.8; border-top: 1px solid #eee; padding-top: 10px; font-size: 14px; }
         .highlight { color: #d9534f; font-weight: bold; font-size: 1.5em; }
         .info-box { padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ddd; display: none; font-size: 13px; font-weight: bold; }
@@ -28,7 +28,7 @@
 <body>
     <div id="main-card" class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
-            <span id="mode-title" style="font-weight: bold;">智慧助手 (策略優化版)</span>
+            <span id="mode-title" style="font-weight: bold;">智慧助手 (數據完整版)</span>
             <span style="color:#007bff; font-weight:bold;">第 <span id="display-round">0</span> 局</span>
         </div>
 
@@ -90,6 +90,7 @@
             setStrat('E'); enableButtons();
             document.getElementById('main-card').className = "card";
             updateUI(); document.getElementById('log').innerHTML = "--- 數據已重置 ---";
+            showWarning("");
         }
 
         function confirmReset() {
@@ -100,27 +101,32 @@
         function exportToCSV() {
             if (logData.length === 0) return;
             let now = new Date();
-            let fileName = `番攤復盤_${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.csv`;
+            let fileName = `番攤深度復盤_${now.getMonth()+1}${now.getDate()}_${now.getHours()}${now.getMinutes()}.csv`;
+            
+            // 1. 每局明細
             let csvContent = "\uFEFF局數,策略模式,下注金額,押角,開獎號碼,單局盈虧,目前餘額\n";
             logData.forEach(row => { csvContent += `${row.r},${row.strat},${row.bet},"${row.target}",${row.open},${row.profit},${row.balance}\n`; });
             
             let mddP = (maxDrawdown / (baseCapital + peakProfit)) * 100;
+            
+            // 2. 深度復盤統計 (橫向三欄整合)
             csvContent += `\n--- 深度復盤分析 ---\n`;
-            csvContent += `最終餘額,${(baseCapital + totalProfit).toFixed(0)},總盈虧,${totalProfit.toFixed(1)}\n`;
-            csvContent += `最高峰值,${peakProfit.toFixed(0)},最大回撤,${mddP.toFixed(1)}%\n`;
+            csvContent += `最終餘額,${(baseCapital + totalProfit).toFixed(0)},總盈虧,${totalProfit.toFixed(1)},總下注流水,${totalWagered.toFixed(0)}\n`;
+            csvContent += `最高峰值,${peakProfit.toFixed(0)},最大回撤,${mddP.toFixed(1)}%,付出油水,${totalCommission.toFixed(1)}\n`;
             csvContent += `中獎次數,${winCount},中獎流水,${winWagered.toFixed(0)}\n`;
             csvContent += `沒中次數,${loseCount},損失流水,${loseWagered.toFixed(0)}\n`;
-            csvContent += `暫停次數,${pauseCount},總下注流水,${totalWagered.toFixed(0)}\n`;
-            csvContent += `付出油水,${totalCommission.toFixed(1)}\n`;
+            csvContent += `暫停次數,${pauseCount}\n`;
             
+            // 3. 策略切換紀錄
             csvContent += `\n--- 策略切換紀錄 ---\n序號,局數,動作,當時累計盈虧\n`;
             stratTracks.forEach((t, i) => { csvContent += `${i + 1},第 ${t.r} 局,切換為策略 ${t.strat},${t.profit}\n`; });
 
-            csvContent += `\n--- 號碼統計 ---\n`;
+            // 4. 號碼分佈
+            csvContent += `\n--- 號碼統計 ---\n號碼,次數,佔比\n`;
             [1,2,3,4].forEach(n => {
                 let c = history.filter(x=>x===n).length;
                 let p = history.length > 0 ? ((c / history.length) * 100).toFixed(1) : 0;
-                csvContent += `號碼 ${n},${c} 次,佔比,${p}%\n`;
+                csvContent += `${n},${c}次,${p}%\n`;
             });
 
             const link = document.createElement("a");
@@ -142,17 +148,15 @@
             if (winTargetReached) { document.getElementById('next-target').innerText = "止贏收工"; return; }
             let last = history.length > 0 ? history[history.length - 1] : null;
             let isStreak = history.length >= 3 && history.slice(-3).every(x => x === last);
-            
-            // 判定是否執行斷龍機制 (B, D 策略不執行)
             let skipByStreak = (isStreak && !['B', 'D'].includes(currentStrat));
+            
             if (skipByStreak) {
-                showWarning("⚠️ 連號暫停 (防禦型策略生效)", "background:#fff3cd; color:#856404;");
+                showWarning("⚠️ 連號暫停 (防禦模式)", "background:#fff3cd; color:#856404;");
                 currentTarget = []; document.getElementById('next-target').innerText = "連號暫停";
                 return;
             }
             showWarning("");
 
-            // 溯源冷熱判定 (最近 12 局)
             let sample = history.slice(-12);
             let heat = {1:0, 2:0, 3:0, 4:0};
             sample.forEach(n => heat[n]++);
@@ -170,7 +174,7 @@
                 currentTarget = sortedByHeat.slice(0, 2).sort();
                 document.getElementById('next-target').innerText = "熱區角 " + currentTarget.join(", ");
             } else if (currentStrat === 'B') {
-                currentTarget = [last, sortedByHeat.filter(n => n !== last)[0]].sort();
+                currentTarget = (last ? [last, sortedByHeat.filter(n => n !== last)[0]] : [1,2]).sort();
                 document.getElementById('next-target').innerText = "追龍角 " + currentTarget.join(", ");
             } else if (currentStrat === 'A') {
                 currentTarget = sortedByHeat.filter(n => n !== last).slice(0, 2).sort();
@@ -187,6 +191,12 @@
             let currentLadder = (currentStrat === 'E') ? ladderShort : ladderFull;
             let isBetting = currentTarget && currentTarget.length > 0;
             let nextBet = isBetting ? currentLadder[currentStep] : 0;
+            
+            if (isBetting && (baseCapital + totalProfit) < nextBet) {
+                showWarning(`🔴 餘額不足 (${nextBet})`, "background:#f8d7da; color:#721c24;");
+                disableButtons(); return;
+            }
+
             let isWin = isBetting && currentTarget.includes(num);
             let roundProfit = 0;
 
@@ -219,7 +229,7 @@
             let card = document.getElementById('main-card'), title = document.getElementById('mode-title');
             if (totalProfit >= 5000) { card.className = "card win-gold"; title.innerText = "🏆 達成止贏"; disableButtons(); }
             else if (totalProfit >= 2000) { card.className = "card strong-mode"; title.innerText = "智慧助手 (20% 強勢期)"; }
-            else { card.className = "card"; title.innerText = "智慧助手 (策略優化版)"; }
+            else { card.className = "card"; title.innerText = "智慧助手 (數據完整版)"; }
             document.getElementById('display-round').innerText = round;
             document.getElementById('current-balance').innerText = (baseCapital + totalProfit).toFixed(0);
             document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
