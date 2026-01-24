@@ -217,3 +217,174 @@
     </script>
 </body>
 </html>
+        <div class="grid">
+            <button class="game-btn" onclick="record(1)">1</button>
+            <button class="game-btn" onclick="record(2)">2</button>
+            <button class="game-btn" onclick="record(3)">3</button>
+            <button class="game-btn" onclick="record(4)">4</button>
+        </div>
+
+        <div class="status">
+            <div style="display:flex; justify-content:space-between;">
+                <span>餘額：<span id="current-balance" style="font-weight:bold; color:#007bff;">10000</span></span>
+                <span>盈虧: <span id="total-profit" style="font-weight:bold;">0.0</span></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size: 11px;">
+                <span style="color:#dc3545; font-weight:bold;">回撤: <span id="mdd-percent">0%</span></span>
+                <span>高峰: <span id="peak-val">0</span></span>
+            </div>
+        </div>
+        
+        <div class="log" id="log">--- 等待開獎 ---</div>
+        
+        <div class="btn-group">
+            <button class="save-btn" onclick="exportToCSV()">💾 導出深度報表</button>
+            <button class="reset-btn" onclick="confirmReset()">🔁 重置數據</button>
+        </div>
+    </div>
+
+    <script>
+        let baseCapital = 10000;
+        let ladderFull = [100, 300, 700, 1500, 3100];
+        let ladderShort = [100, 300, 700];
+        let round, currentStep, totalProfit, counts, history, currentStrat, peakProfit, maxDrawdown, winTargetReached, logData;
+        let totalWagered, totalCommission, stratTracks, winCount, loseCount, pauseCount, winWagered, loseWagered, currentTarget;
+
+        function init() {
+            round = 0; currentStep = 0; totalProfit = 0; counts = {1:0, 2:0, 3:0, 4:0};
+            history = []; peakProfit = 0; maxDrawdown = 0; winTargetReached = false; logData = [];
+            totalWagered = 0; totalCommission = 0; winCount = 0; loseCount = 0; pauseCount = 0;
+            winWagered = 0; loseWagered = 0; currentTarget = []; stratTracks = [];
+            setStrat('E'); enableButtons();
+            document.getElementById('main-card').className = "card";
+            updateUI(); document.getElementById('log').innerHTML = "--- 數據已重置 ---";
+            showWarning("");
+        }
+
+        function setStrat(s) {
+            currentStrat = s;
+            stratTracks.push({ r: round, strat: s, profit: totalProfit.toFixed(1) });
+            document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn' + s).classList.add('active');
+            currentStep = 0;
+            calculateTarget();
+        }
+
+        function calculateTarget() {
+            if (winTargetReached) return;
+            let last = history.length > 0 ? history[history.length - 1] : null;
+            let isStreak = history.length >= 3 && history.slice(-3).every(x => x === last);
+            if (isStreak && ['A', 'C', 'E'].includes(currentStrat)) {
+                showWarning(⚠️ 連號暫停", "background:#fff3cd; color:#856404;");
+                currentTarget = []; document.getElementById('next-target').innerText = "連號暫停";
+                return;
+            }
+            showWarning("");
+            let sample = history.slice(-12);
+            let heat = {1:0, 2:0, 3:0, 4:0};
+            sample.forEach(n => heat[n]++);
+            let sortedByHeat = [1,2,3,4].sort((a,b) => heat[b] !== heat[a] ? heat[b] - heat[a] : counts[a] - counts[b]);
+            if (currentStrat === 'E') {
+                if (history.length < 3) { currentTarget = []; document.getElementById('next-target').innerText = `觀察(${history.length}/3)`; }
+                else {
+                    let coldVal = Math.max(...Object.values(counts));
+                    let colds = [1,2,3,4].filter(n => counts[n] === coldVal);
+                    currentTarget = (colds.length === 1) ? [1,2,3,4].filter(n => n !== colds[0] && n !== last).sort() : [];
+                    document.getElementById('next-target').innerText = currentTarget.length ? currentTarget.join(",") : "冷號不唯一";
+                }
+            } else if (currentStrat === 'D') { currentTarget = sortedByHeat.slice(0, 2).sort(); }
+            else if (currentStrat === 'B') { currentTarget = last ? [last, sortedByHeat.filter(n => n !== last)[0]].sort() : [1,2]; }
+            else if (currentStrat === 'A') { currentTarget = sortedByHeat.filter(n => n !== last).slice(0, 2).sort(); }
+            else if (currentStrat === 'C') { currentTarget = [1,2,3,4].sort((a,b) => counts[b] - counts[a]).slice(0, 2).sort(); }
+            else if (currentStrat === 'F') {
+                let coldOne = [1,2,3,4].sort((a,b) => counts[b] - counts[a])[0];
+                currentTarget = (last && last !== coldOne) ? [last, coldOne].sort() : sortedByHeat.slice(0, 2).sort();
+            }
+            if (currentStrat !== 'E') document.getElementById('next-target').innerText = currentTarget.join(",");
+            refreshNextBetDisplay();
+        }
+
+        function record(num) {
+            if (winTargetReached) return;
+            let currentLadder = (currentStrat === 'E') ? ladderShort : ladderFull;
+            let isBetting = currentTarget && currentTarget.length > 0;
+            let nextBet = isBetting ? currentLadder[currentStep] : 0;
+            if (isBetting && (baseCapital + totalProfit) < nextBet) { showWarning(`🔴 餘額不足 (${nextBet})`, "background:#f8d7da; color:#721c24;"); disableButtons(); return; }
+            let isWin = isBetting && currentTarget.includes(num);
+            let roundProfit = isBetting ? (isWin ? nextBet * 0.95 : -nextBet) : 0;
+            if (isBetting) {
+                totalWagered += nextBet;
+                if (isWin) { totalCommission += nextBet * 0.05; winCount++; winWagered += nextBet; }
+                else { loseCount++; loseWagered += nextBet; }
+            } else { pauseCount++; }
+            totalProfit += roundProfit;
+            peakProfit = Math.max(peakProfit, totalProfit);
+            maxDrawdown = Math.max(maxDrawdown, peakProfit - totalProfit);
+            logData.push({ r: round + 1, strat: currentStrat, bet: nextBet, target: isBetting ? currentTarget.join(",") : "⏸️", open: num, profit: roundProfit.toFixed(1), balance: (baseCapital + totalProfit).toFixed(0) });
+            writeLog(round + 1, nextBet, isBetting ? currentTarget.join(",") : "⏸️", num, isWin, roundProfit);
+            if (isBetting) { if (isWin) currentStep = 0; else { currentStep++; if (currentStep >= currentLadder.length) currentStep = 0; } }
+            history.push(num); round++; [1,2,3,4].forEach(n => n === num ? counts[n] = 0 : counts[n]++);
+            if (totalProfit >= 5000) winTargetReached = true;
+            calculateTarget(); updateUI();
+        }
+
+        function writeLog(r, b, t, o, win, p) {
+            let logBox = document.getElementById('log');
+            if (logBox.innerHTML.includes("---")) logBox.innerHTML = "";
+            let res = b === 0 ? "⏸️" : (win ? "✅" : "❌");
+            logBox.innerHTML = `<div>(${r}) [${currentStrat}] ${b} | ${t} 開:${o} ${res} ${(p>=0?"+":"")+p.toFixed(0)}</div>` + logBox.innerHTML;
+        }
+
+        function updateUI() {
+            if (totalProfit >= 5000) { document.getElementById('main-card').className = "card win-gold"; disableButtons(); }
+            document.getElementById('display-round').innerText = round;
+            document.getElementById('current-balance').innerText = (baseCapital + totalProfit).toFixed(0);
+            document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
+            let mddP = (maxDrawdown / (baseCapital + (peakProfit > 0 ? peakProfit : 0))) * 100;
+            document.getElementById('mdd-percent').innerText = mddP.toFixed(1) + "%";
+            document.getElementById('peak-val').innerText = peakProfit.toFixed(0);
+            refreshNextBetDisplay();
+        }
+
+        function refreshNextBetDisplay() {
+            let currentLadder = (currentStrat === 'E') ? ladderShort : ladderFull;
+            document.getElementById('next-bet').innerText = winTargetReached ? "止贏" : (currentTarget.length === 0 ? "0" : currentLadder[currentStep]);
+            document.getElementById('ladder-hint').innerText = (currentStrat === 'E') ? "(1-3-7)" : "(1-3-7-15-31)";
+        }
+
+        function exportToCSV() {
+            if (logData.length === 0) return;
+            let csv = "\uFEFF局數,策略,金額,組合,開獎,盈虧,餘額\n";
+            logData.forEach(r => csv += `${r.r},${r.strat},${r.bet},"${r.target}",${r.open},${r.profit},${r.balance}\n`);
+            csv += `\n--- 深度統計報表 ---\n`;
+            csv += `最終餘額,${(baseCapital + totalProfit).toFixed(0)},總盈虧,${totalProfit.toFixed(1)},總流水,${totalWagered.toFixed(0)}\n`;
+            csv += `最高高峰,${peakProfit.toFixed(0)},最大回撤,${maxDrawdown.toFixed(0)},付出油水,${totalCommission.toFixed(1)}\n`;
+            csv += `中獎次數,${winCount},中獎流水,${winWagered.toFixed(0)}\n`;
+            csv += `沒中次數,${loseCount},損失流水,${loseWagered.toFixed(0)}\n`;
+            csv += `暫停局數,${pauseCount}\n`;
+            csv += `\n--- 策略軌跡紀錄 ---\n局數,切換動作,當時累計盈虧\n`;
+            stratTracks.forEach(t => csv += `${t.r},切換至策略 ${t.strat},${t.profit}\n`);
+            
+            // 補回號碼統計
+            csv += `\n--- 號碼出現統計 ---\n號碼,次數,百分比\n`;
+            [1,2,3,4].forEach(n => {
+                let c = history.filter(x => x === n).length;
+                let p = history.length > 0 ? (c / history.length * 100).toFixed(1) : 0;
+                csv += `${n},${c}次,${p}%\n`;
+            });
+
+            let blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `番攤深度復盤_${new Date().getTime()}.csv`;
+            link.click();
+        }
+
+        function confirmReset() { if (confirm("確定重置數據？")) init(); }
+        function showWarning(m, s) { let b = document.getElementById('status-warning'); if (m) { b.style.display = 'block'; b.innerText = m; b.style.cssText += s; } else { b.style.display = 'none'; } }
+        function disableButtons() { document.querySelectorAll('.game-btn').forEach(b => b.disabled = true); }
+        function enableButtons() { document.querySelectorAll('.game-btn').forEach(b => b.disabled = false); }
+        window.onload = init;
+    </script>
+</body>
+</html>
