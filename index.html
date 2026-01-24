@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>番攤助手-深度分析完全版</title>
+    <title>番攤助手-深度數據全解析</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; background: #f4f7f6; padding: 10px; }
         .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; border-top: 8px solid #28a745; }
@@ -26,7 +26,7 @@
 <body>
     <div id="main-card" class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
-            <span id="mode-title" style="font-weight: bold;">智慧助手 (深度分析版)</span>
+            <span id="mode-title" style="font-weight: bold;">智慧助手 (完整解析版)</span>
             <span style="color:#007bff; font-weight:bold;">第 <span id="display-round">0</span> 局</span>
         </div>
 
@@ -42,8 +42,8 @@
         <div id="status-warning" class="info-box"></div>
 
         <div id="bet-area">
-            <p style="margin:5px 0;">下一局注碼：<span class="highlight" id="next-bet">0</span> <small id="ladder-hint" style="color:#666;"></small></p >
-            <p style="margin:5px 0;">建議投注：<span class="highlight" id="next-target">觀察中</span></p >
+            <p style="margin:5px 0;">下注：<span class="highlight" id="next-bet">0</span> <small id="ladder-hint" style="color:#666;"></small></p >
+            <p style="margin:5px 0;">建議：<span class="highlight" id="next-target">觀察中</span></p >
         </div>
 
         <div class="grid">
@@ -60,14 +60,14 @@
             </div>
             <div style="display:flex; justify-content:space-between; font-size: 11px;">
                 <span style="color:#dc3545; font-weight:bold;">回撤: <span id="mdd-percent">0%</span></span>
-                <span>高峰盈虧: <span id="peak-val">0</span></span>
+                <span>高峰: <span id="peak-val">0</span></span>
             </div>
         </div>
         
         <div class="log" id="log">--- 等待開獎 ---</div>
         
         <div class="btn-group">
-            <button class="save-btn" onclick="exportToCSV()">💾 深度分析導出</button>
+            <button class="save-btn" onclick="exportToCSV()">💾 導出深度報表</button>
             <button class="reset-btn" onclick="confirmReset()">🔁 重置數據</button>
         </div>
     </div>
@@ -82,14 +82,11 @@
         function init() {
             round = 0; currentStep = 0; totalProfit = 0; counts = {1:0, 2:0, 3:0, 4:0};
             history = []; peakProfit = 0; maxDrawdown = 0; winTargetReached = false; logData = [];
-            totalWagered = 0; totalCommission = 0; stratTracks = [];
-            winCount = 0; loseCount = 0; pauseCount = 0; winWagered = 0; loseWagered = 0;
-            currentTarget = [];
-            setStrat('E');
-            enableButtons();
+            totalWagered = 0; totalCommission = 0; winCount = 0; loseCount = 0; pauseCount = 0;
+            winWagered = 0; loseWagered = 0; currentTarget = []; stratTracks = [];
+            setStrat('E'); enableButtons();
             document.getElementById('main-card').className = "card";
-            updateUI();
-            document.getElementById('log').innerHTML = "--- 數據已重置 ---";
+            updateUI(); document.getElementById('log').innerHTML = "--- 數據已重置 ---";
             showWarning("");
         }
 
@@ -106,44 +103,33 @@
             if (winTargetReached) return;
             let last = history.length > 0 ? history[history.length - 1] : null;
             let isStreak = history.length >= 3 && history.slice(-3).every(x => x === last);
-            
             if (isStreak && ['A', 'C', 'E'].includes(currentStrat)) {
-                showWarning("⚠️ 連號暫停 (防禦模式)", "background:#fff3cd; color:#856404;");
+                showWarning("⚠️ 連號暫停", "background:#fff3cd; color:#856404;");
                 currentTarget = []; document.getElementById('next-target').innerText = "連號暫停";
                 return;
             }
             showWarning("");
-
             let sample = history.slice(-12);
             let heat = {1:0, 2:0, 3:0, 4:0};
             sample.forEach(n => heat[n]++);
             let sortedByHeat = [1,2,3,4].sort((a,b) => heat[b] !== heat[a] ? heat[b] - heat[a] : counts[a] - counts[b]);
-
             if (currentStrat === 'E') {
                 if (history.length < 3) { currentTarget = []; document.getElementById('next-target').innerText = `觀察(${history.length}/3)`; }
                 else {
                     let coldVal = Math.max(...Object.values(counts));
                     let colds = [1,2,3,4].filter(n => counts[n] === coldVal);
                     currentTarget = (colds.length === 1) ? [1,2,3,4].filter(n => n !== colds[0] && n !== last).sort() : [];
-                    document.getElementById('next-target').innerText = currentTarget.length ? "角 " + currentTarget.join(",") : "冷號不唯一";
+                    document.getElementById('next-target').innerText = currentTarget.length ? currentTarget.join(",") : "冷號不唯一";
                 }
-            } else if (currentStrat === 'D') {
-                currentTarget = sortedByHeat.slice(0, 2).sort();
-                document.getElementById('next-target').innerText = "熱區角 " + currentTarget.join(",");
-            } else if (currentStrat === 'B') {
-                currentTarget = last ? [last, sortedByHeat.filter(n => n !== last)[0]].sort() : [1,2];
-                document.getElementById('next-target').innerText = "追龍角 " + currentTarget.join(",");
-            } else if (currentStrat === 'A') {
-                currentTarget = sortedByHeat.filter(n => n !== last).slice(0, 2).sort();
-                document.getElementById('next-target').innerText = "避跳角 " + currentTarget.join(",");
-            } else if (currentStrat === 'C') {
-                currentTarget = [1,2,3,4].sort((a,b) => counts[b] - counts[a]).slice(0, 2).sort();
-                document.getElementById('next-target').innerText = "買冷角 " + currentTarget.join(",");
-            } else if (currentStrat === 'F') {
+            } else if (currentStrat === 'D') { currentTarget = sortedByHeat.slice(0, 2).sort(); }
+            else if (currentStrat === 'B') { currentTarget = last ? [last, sortedByHeat.filter(n => n !== last)[0]].sort() : [1,2]; }
+            else if (currentStrat === 'A') { currentTarget = sortedByHeat.filter(n => n !== last).slice(0, 2).sort(); }
+            else if (currentStrat === 'C') { currentTarget = [1,2,3,4].sort((a,b) => counts[b] - counts[a]).slice(0, 2).sort(); }
+            else if (currentStrat === 'F') {
                 let coldOne = [1,2,3,4].sort((a,b) => counts[b] - counts[a])[0];
                 currentTarget = (last && last !== coldOne) ? [last, coldOne].sort() : sortedByHeat.slice(0, 2).sort();
-                document.getElementById('next-target').innerText = "平衡角 " + currentTarget.join(",");
             }
+            if (currentStrat !== 'E') document.getElementById('next-target').innerText = currentTarget.join(",");
             refreshNextBetDisplay();
         }
 
@@ -152,28 +138,19 @@
             let currentLadder = (currentStrat === 'E') ? ladderShort : ladderFull;
             let isBetting = currentTarget && currentTarget.length > 0;
             let nextBet = isBetting ? currentLadder[currentStep] : 0;
-            
-            if (isBetting && (baseCapital + totalProfit) < nextBet) {
-                showWarning(`🔴 餘額不足 (${nextBet})`, "background:#f8d7da; color:#721c24;");
-                disableButtons(); return;
-            }
-
+            if (isBetting && (baseCapital + totalProfit) < nextBet) { showWarning(`🔴 餘額不足 (${nextBet})`, "background:#f8d7da; color:#721c24;"); disableButtons(); return; }
             let isWin = isBetting && currentTarget.includes(num);
             let roundProfit = isBetting ? (isWin ? nextBet * 0.95 : -nextBet) : 0;
-
             if (isBetting) {
                 totalWagered += nextBet;
                 if (isWin) { totalCommission += nextBet * 0.05; winCount++; winWagered += nextBet; }
                 else { loseCount++; loseWagered += nextBet; }
             } else { pauseCount++; }
-
             totalProfit += roundProfit;
             peakProfit = Math.max(peakProfit, totalProfit);
             maxDrawdown = Math.max(maxDrawdown, peakProfit - totalProfit);
-            
             logData.push({ r: round + 1, strat: currentStrat, bet: nextBet, target: isBetting ? currentTarget.join(",") : "⏸️", open: num, profit: roundProfit.toFixed(1), balance: (baseCapital + totalProfit).toFixed(0) });
             writeLog(round + 1, nextBet, isBetting ? currentTarget.join(",") : "⏸️", num, isWin, roundProfit);
-            
             if (isBetting) { if (isWin) currentStep = 0; else { currentStep++; if (currentStep >= currentLadder.length) currentStep = 0; } }
             history.push(num); round++; [1,2,3,4].forEach(n => n === num ? counts[n] = 0 : counts[n]++);
             if (totalProfit >= 5000) winTargetReached = true;
@@ -188,8 +165,7 @@
         }
 
         function updateUI() {
-            let card = document.getElementById('main-card');
-            if (totalProfit >= 5000) { card.className = "card win-gold"; disableButtons(); }
+            if (totalProfit >= 5000) { document.getElementById('main-card').className = "card win-gold"; disableButtons(); }
             document.getElementById('display-round').innerText = round;
             document.getElementById('current-balance').innerText = (baseCapital + totalProfit).toFixed(0);
             document.getElementById('total-profit').innerText = totalProfit.toFixed(1);
@@ -207,46 +183,36 @@
 
         function exportToCSV() {
             if (logData.length === 0) return;
-            let now = new Date();
-            let fileName = `番攤深度分析_${now.getHours()}${now.getMinutes()}.csv`;
-            let csv = "\uFEFF局數,策略,下注,組合,開獎,盈虧,餘額\n";
+            let csv = "\uFEFF局數,策略,金額,組合,開獎,盈虧,餘額\n";
             logData.forEach(r => csv += `${r.r},${r.strat},${r.bet},"${r.target}",${r.open},${r.profit},${r.balance}\n`);
-            
-            csv += `\n--- 財務深度指標 ---\n`;
+            csv += `\n--- 深度統計報表 ---\n`;
             csv += `最終餘額,${(baseCapital + totalProfit).toFixed(0)},總盈虧,${totalProfit.toFixed(1)},總流水,${totalWagered.toFixed(0)}\n`;
-            csv += `高峰盈虧,${peakProfit.toFixed(0)},最大回撤額,${maxDrawdown.toFixed(0)},付出油水,${totalCommission.toFixed(1)}\n`;
-            
-            csv += `\n--- 勝率與流水細節 ---\n`;
-            let totalGames = winCount + loseCount;
-            csv += `中獎次數,${winCount},中獎流水,${winWagered.toFixed(0)},勝率,${totalGames? (winCount/totalGames*100).toFixed(1):0}%\n`;
-            csv += `沒中次數,${loseCount},損失流水,${loseWagered.toFixed(0)},敗率,${totalGames? (loseCount/totalGames*100).toFixed(1):0}%\n`;
+            csv += `最高高峰,${peakProfit.toFixed(0)},最大回撤,${maxDrawdown.toFixed(0)},付出油水,${totalCommission.toFixed(1)}\n`;
+            csv += `中獎次數,${winCount},中獎流水,${winWagered.toFixed(0)}\n`;
+            csv += `沒中次數,${loseCount},損失流水,${loseWagered.toFixed(0)}\n`;
             csv += `暫停局數,${pauseCount}\n`;
-
-            csv += `\n--- 策略分項貢獻 ---\n策略,下注局數,淨盈虧\n`;
-            ['A','B','C','D','E','F'].forEach(s => {
-                let sD = logData.filter(d => d.strat === s && d.bet > 0);
-                let sP = sD.reduce((a, b) => a + parseFloat(b.profit), 0);
-                csv += `${s},${sD.length},${sP.toFixed(1)}\n`;
-            });
-
-            csv += `\n--- 號碼分佈統計 ---\n號碼,次數,佔比\n`;
+            csv += `\n--- 策略軌跡紀錄 ---\n局數,切換動作,當時累計盈虧\n`;
+            stratTracks.forEach(t => csv += `${t.r},切換至策略 ${t.strat},${t.profit}\n`);
+            
+            // 補回號碼統計
+            csv += `\n--- 號碼出現統計 ---\n號碼,次數,百分比\n`;
             [1,2,3,4].forEach(n => {
-                let c = history.filter(x=>x===n).length;
-                csv += `${n},${c},${history.length?(c/history.length*100).toFixed(1):0}%\n`;
+                let c = history.filter(x => x === n).length;
+                let p = history.length > 0 ? (c / history.length * 100).toFixed(1) : 0;
+                csv += `${n},${c}次,${p}%\n`;
             });
 
             let blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", fileName);
+            link.download = `番攤深度復盤_${new Date().getTime()}.csv`;
             link.click();
         }
 
-        function confirmReset() { if (confirm("確定重置所有數據？")) init(); }
+        function confirmReset() { if (confirm("確定重置數據？")) init(); }
         function showWarning(m, s) { let b = document.getElementById('status-warning'); if (m) { b.style.display = 'block'; b.innerText = m; b.style.cssText += s; } else { b.style.display = 'none'; } }
         function disableButtons() { document.querySelectorAll('.game-btn').forEach(b => b.disabled = true); }
         function enableButtons() { document.querySelectorAll('.game-btn').forEach(b => b.disabled = false); }
-
         window.onload = init;
     </script>
 </body>
