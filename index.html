@@ -189,32 +189,45 @@
 
         function showDiag() { 
             if(hist.length < 5) { alert("數據不足 (需5局以上)"); return; }
+            
+            // 1. 盤勢維度 (近12局跳頻)
             let sample = hist.slice(-12);
             let jumps = 0;
             for(let i=1; i<sample.length; i++) if(sample[i] !== sample[i-1]) jumps++;
             let jumpRate = (jumps / (sample.length - 1) * 100).toFixed(0);
 
-            let recentLogs = logD.slice(-5);
-            let recentWins = recentLogs.filter(l => l.w).length;
-            let recentProfit = recentLogs.reduce((sum, l) => sum + parseFloat(l.p), 0);
-            
+            // 2. 盈虧維度 (近12局與總計)
+            let recent12 = logD.slice(-12);
+            let profit12 = recent12.reduce((sum, l) => sum + parseFloat(l.p), 0);
+            let wins12 = recent12.filter(l => l.w).length;
+            let winRate12 = ((wins12 / (recent12.length || 1)) * 100).toFixed(0);
+
+            // 3. 熱度維度 (長短線共振)
             let gHeat = {1:0, 2:0, 3:0, 4:0};
             hist.forEach(n => gHeat[n]++);
             let gMax = [1,2,3,4].sort((a,b) => gHeat[b] - gHeat[a])[0];
+            let sMax = [1,2,3,4].sort((a,b) => (sample.filter(x=>x===b).length) - (sample.filter(x=>x===a).length))[0];
 
-            let report = `【深度診斷】\n`;
-            report += `當前節奏：${jumpRate}% (${jumpRate >= 70 ? '強跳' : jumpRate <= 30 ? '長龍' : '平穩'})\n`;
-            report += `近5局盈虧：${recentProfit.toFixed(0)} (${recentWins}勝)\n`;
-            report += `全局熱號：[${gMax}]\n----------------\n`;
+            let report = `【全維度實戰診斷】\n`;
+            report += `📊 盤勢：${jumpRate}% (${jumpRate >= 70 ? '強跳' : jumpRate <= 30 ? '長龍' : '震盪'})\n`;
+            report += `💰 近12局盈虧：${profit12.toFixed(0)} (${winRate12}%勝)\n`;
+            report += `🔥 熱號共振：全局[${gMax}] / 短期[${sMax}]\n`;
+            report += `----------------\n`;
 
             let advice = "";
-            if (recentProfit < 0 && recentWins <= 1) {
-                report += `⚠️ 警報：與盤路不適配！\n`;
-                advice = jumpRate >= 70 ? "切換至 [A 避跳]" : (jumpRate <= 30 ? "切換至 [B 追龍]" : "改用 [F 平衡]");
+            let status = (profit12 < 0) ? "🔴 目前處於【逆風期】，建議換路。" : "🟢 目前處於【順風期】，建議維持。";
+
+            // 決策核心邏輯
+            if (profit12 < 0 && wins12 < 5) {
+                if (jumpRate >= 70) advice = "建議變陣至：[A 避跳]";
+                else if (jumpRate <= 30) advice = "建議變陣至：[B 追龍]";
+                else advice = "建議變陣至：[F 平衡]";
             } else {
-                advice = jumpRate >= 70 ? "統計建議：[A 避跳]" : (jumpRate <= 30 ? "統計建議：[B 追龍]" : "盤勢平穩建議維持");
+                if (gMax === sMax) advice = "數據高度契合，建議維持或使用 [D 買熱]";
+                else advice = "盤勢平穩，推薦使用 [E 反向限壓]";
             }
-            alert(report + advice);
+
+            alert(report + status + "\n" + advice + `\n\n累計盈虧總計：${totalP.toFixed(1)}`);
         }
 
         function toggleHeguan() { 
