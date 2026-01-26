@@ -3,43 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智慧助手 V6.7</title>
+    <title>智慧助手 V6.7 - 修正版</title>
     <style>
         body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto; background: #f0f2f5; margin: 0; padding: 15px; display: flex; justify-content: center; }
         .card { background: white; border-radius: 20px; padding: 20px; width: 100%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 10px solid #28a745; position: relative; }
-        /* 止盈後的金色外殼 */
-        .card.win-gold { border-top-color: #ffd700; background: #fffdf0; }
-        
         .fab { position: fixed; bottom: 80px; width: 65px; height: 65px; border-radius: 50%; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.3); z-index: 1000; border: 2px solid #fff; line-height: 1.2; }
         #diag-fab { left: 15px; background: #007bff; }
         #heguan-fab { right: 15px; background: #1a1a1a; color: #ffd700; border-color: #ffd700; }
-
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .title { font-size: 18px; font-weight: bold; color: #333; }
         .round-tag { color: #007bff; font-weight: bold; }
-
         .strategy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
         .strat-btn { background: #e9ecef; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #666; cursor: pointer; }
         .strat-btn.active { background: #007bff; color: white; }
-
         .bet-info { margin-bottom: 20px; background: #f8f9fa; padding: 12px; border-radius: 12px; }
         .bet-row { font-size: 18px; margin: 5px 0; font-weight: bold; }
         .highlight-red { font-size: 26px; color: #d9534f; margin-left: 5px; }
         .ladder-hint { font-size: 14px; color: #999; font-weight: normal; }
-
         .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
         .num-btn { aspect-ratio: 1; border: none; border-radius: 12px; background: #28a745; color: white; font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #1e7e34; }
         .num-btn:disabled { background: #ccc !important; box-shadow: 0 4px 0 #999 !important; cursor: not-allowed; }
-        
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid #eee; padding-top: 15px; font-size: 14px; text-align: left; }
         .stat-val { font-weight: bold; }
         .val-blue { color: #007bff; }
         .val-red { color: #d9534f; }
-
         .log-container { background: #fafafa; border: 1px solid #eee; border-radius: 10px; height: 160px; overflow-y: scroll; margin-top: 15px; padding: 10px; font-family: monospace; font-size: 12px; text-align: left; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; color: white; padding: 40px 20px; box-sizing: border-box; }
-        
-        #h-calc-process { margin-top: 20px; font-size: 16px; color: #aaa; min-height: 24px; font-family: monospace; }
         .warning-box { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; font-size: 14px; font-weight: bold; text-align: center; }
     </style>
 </head>
@@ -50,12 +39,10 @@
 
     <div class="card" id="main-card">
         <div class="header">
-            <span class="title">智慧助手 (策略優化版)</span>
+            <span class="title">智慧助手 V6.7</span>
             <span class="round-tag">第 <span id="round-num">0</span> 局</span>
         </div>
-
         <div id="status-warning" class="warning-box"></div>
-
         <div class="strategy-grid">
             <button class="strat-btn" id="btnA" onclick="setS('A')">A 避跳</button>
             <button class="strat-btn" id="btnB" onclick="setS('B')">B 追龍</button>
@@ -64,31 +51,26 @@
             <button class="strat-btn active" id="btnE" onclick="setS('E')">E 反向限壓</button>
             <button class="strat-btn" id="btnF" onclick="setS('F')">F 平衡</button>
         </div>
-
         <div class="bet-info">
-            <div class="bet-row">下一局注碼：<span class="highlight-red" id="next-b">0</span> <span class="ladder-hint" id="l-hint"></span></div>
-            <div class="bet-row">建議投注：<span class="highlight-red" id="next-t">觀察中</span></div>
+            <div class="bet-row">注碼：<span class="highlight-red" id="next-b">0</span> <span class="ladder-hint" id="l-hint"></span></div>
+            <div class="bet-row">建議：<span class="highlight-red" id="next-t">觀察中</span></div>
         </div>
-
         <div class="num-grid">
             <button class="num-btn" onclick="rec(1)">1</button>
             <button class="num-btn" onclick="rec(2)">2</button>
             <button class="num-btn" onclick="rec(3)">3</button>
             <button class="num-btn" onclick="rec(4)">4</button>
         </div>
-
         <div class="stats-grid">
             <div>餘額：<span class="stat-val val-blue" id="bal">10000</span></div>
             <div>盈虧：<span class="stat-val" id="prof">0.0</span></div>
             <div class="val-red">MDD：<span class="stat-val" id="mdd">0.0%</span></div>
-            <div>最高峰：<span class="stat-val" id="peak">0</span></div>
+            <div>最高：<span class="stat-val" id="peak">0</span></div>
         </div>
-
         <div class="log-container" id="log-box">--- 數據就緒 ---</div>
-
         <div style="display: flex; gap: 8px; margin-top: 15px;">
-            <button onclick="exportCSV()" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold;">💾 存檔記錄</button>
-            <button onclick="confirmReset()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: bold;">🔄 重置數據</button>
+            <button onclick="exportCSV()" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold;">💾 存檔</button>
+            <button onclick="confirmReset()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: bold;">🔄 重置</button>
         </div>
     </div>
 
@@ -99,14 +81,14 @@
             <div id="h-tokens" style="display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:30px 0; min-height:60px;"></div>
             <div id="h-res" style="font-size: 100px; font-weight: bold; color: #ffd700;">—</div>
             <button id="h-start-btn" onclick="hRun()" style="background:#ffd700; color:#000; border:none; padding:15px 40px; border-radius:10px; font-size:20px; font-weight:bold;">開始撥弄</button>
-            <div id="h-calc-process">等待撥弄...</div>
+            <div id="h-calc-process" style="margin-top:20px; font-family:monospace; color:#aaa;">等待撥弄...</div>
         </div>
     </div>
 
     <script>
         let capital = 10000, round = 0, step = 0, totalP = 0, peakP = 0, maxD = 0;
         let hist = [], logD = [], strat = 'E', target = [], counts = {1:0, 2:0, 3:0, 4:0};
-        let isStopped = false; // 新增控制變數
+        let isStopped = false; 
         const ladF = [100, 300, 700, 1500, 3100], ladS = [100, 300, 700];
 
         function setS(s) { if(isStopped) return; strat = s; step = 0; document.querySelectorAll('.strat-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn'+s).classList.add('active'); calc(); updateUI(); }
@@ -146,19 +128,119 @@
         }
 
         function rec(n) {
-            if (isStopped) return; // 止盈或餘額不足時拒絕操作
-
+            if (isStopped) return;
             let lad = (strat === 'E') ? ladS : ladF;
             let bet = target.length ? lad[step] : 0;
             
-            // --- 新增：餘額不足攔截 ---
             if (bet > (capital + totalP)) {
                 document.getElementById('status-warning').innerText = `🔴 餘額不足 (${bet})`;
                 document.getElementById('status-warning').style.display = 'block';
-                disableAll();
+                isStopped = true;
                 return;
             }
 
             let win = target.includes(n);
             let p = bet ? (win ? bet * 0.95 : -bet) : 0;
-          
+            totalP += p; peakP = Math.max(peakP, totalP); maxD = Math.max(maxD, peakP - totalP);
+            
+            logD.push({ r: round + 1, s: strat, b: bet, t: target.join("/"), o: n, w: win, p: p.toFixed(1), bal: (capital + totalP).toFixed(0) });
+            
+            updateLog(round+1, strat, bet, n, win, p);
+            if (bet) { if (win) step = 0; else { step++; if (step >= lad.length) step = 0; } }
+            hist.push(n); round++; [1,2,3,4].forEach(x => x === n ? counts[x]=0 : counts[x]++);
+            calc(); updateUI();
+        }
+
+        function updateLog(r, s, b, n, w, p) {
+            let box = document.getElementById('log-box'); if(box.innerText.includes("---")) box.innerText="";
+            box.innerHTML = `<div>(${r}) [${s}] ${b} 開:${n} | ${b===0?'-':(w?'✅':'❌')} ${p.toFixed(0)}</div>` + box.innerHTML;
+        }
+
+        function updateUI() {
+            document.getElementById('round-num').innerText = round;
+            document.getElementById('bal').innerText = (capital + totalP).toFixed(0);
+            document.getElementById('prof').innerText = totalP.toFixed(1);
+            document.getElementById('peak').innerText = peakP.toFixed(0);
+            document.getElementById('mdd').innerText = ((maxD/(capital+peakP))*100).toFixed(1) + "%";
+            document.getElementById('next-b').innerText = target.length ? ((strat==='E'?ladS:ladF)[step]) : 0;
+            document.getElementById('l-hint').innerText = strat==='E' ? "(1-3-7)" : "(1-3-7-15-31)";
+        }
+
+        function exportCSV() {
+            if (logD.length === 0) { alert("無記錄可存檔"); return; }
+            let csv = "\uFEFF局數,策略,下注金額,投注組合,開獎結果,勝負,盈虧,餘額\n";
+            logD.forEach(row => csv += `${row.r},${row.s},${row.b},${row.t},${row.o},${row.w?'勝':'負'},${row.p},${row.bal}\n`);
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `番攤_${new Date().getTime()}.csv`);
+            link.click();
+        }
+
+        function confirmReset() {
+            if (confirm("重置數據？")) {
+                round = 0; step = 0; totalP = 0; peakP = 0; maxD = 0; isStopped = false;
+                hist = []; logD = []; counts = {1:0, 2:0, 3:0, 4:0};
+                document.getElementById('log-box').innerText = "--- 數據已重置 ---";
+                document.getElementById('status-warning').style.display = 'none';
+                calc(); updateUI();
+            }
+        }
+
+        function showDiag() { 
+            if(hist.length < 5) { alert("數據不足 (需5局以上)"); return; }
+            let sample = hist.slice(-12);
+            let jumps = 0;
+            for(let i=1; i<sample.length; i++) if(sample[i] !== sample[i-1]) jumps++;
+            let jumpRate = (jumps / (sample.length - 1) * 100).toFixed(0);
+
+            let recentLogs = logD.slice(-5);
+            let recentWins = recentLogs.filter(l => l.w).length;
+            let recentProfit = recentLogs.reduce((sum, l) => sum + parseFloat(l.p), 0);
+            
+            let gHeat = {1:0, 2:0, 3:0, 4:0};
+            hist.forEach(n => gHeat[n]++);
+            let gMax = [1,2,3,4].sort((a,b) => gHeat[b] - gHeat[a])[0];
+
+            let report = `【深度診斷】\n`;
+            report += `當前節奏：${jumpRate}% (${jumpRate >= 70 ? '強跳' : jumpRate <= 30 ? '長龍' : '平穩'})\n`;
+            report += `近5局盈虧：${recentProfit.toFixed(0)} (${recentWins}勝)\n`;
+            report += `全局熱號：[${gMax}]\n----------------\n`;
+
+            let advice = "";
+            if (recentProfit < 0 && recentWins <= 1) {
+                report += `⚠️ 警報：與盤路不適配！\n`;
+                advice = jumpRate >= 70 ? "切換至 [A 避跳]" : (jumpRate <= 30 ? "切換至 [B 追龍]" : "改用 [F 平衡]");
+            } else {
+                advice = jumpRate >= 70 ? "統計建議：[A 避跳]" : (jumpRate <= 30 ? "統計建議：[B 追龍]" : "盤勢平穩建議維持");
+            }
+            alert(report + advice);
+        }
+
+        function toggleHeguan() { 
+            let p = document.getElementById('h-panel'); 
+            p.style.display = (p.style.display==='block')?'none':'block'; 
+        }
+
+        function hRun() {
+            document.getElementById('h-start-btn').disabled = true;
+            let sum=0, c=0, t = Math.floor(Math.random() * (20 - 13 + 1)) + 13; 
+            document.getElementById('h-count-display').innerText = t;
+            document.getElementById('h-tokens').innerHTML='';
+            let inv = setInterval(()=>{
+                let v = Math.floor(Math.random()*6)+1; sum+=v; c++;
+                let d = document.createElement('div'); d.style="width:28px;height:28px;background:#ffd700;border-radius:50%;color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;";
+                d.innerText=v; document.getElementById('h-tokens').appendChild(d);
+                if(c>=t){ 
+                    clearInterval(inv); 
+                    let r=(sum%4===0)?4:(sum%4); 
+                    document.getElementById('h-res').innerText=r; 
+                    document.getElementById('h-calc-process').innerHTML = `總和 ${sum} ÷ 4 餘 ${sum%4 || 4}`;
+                    setTimeout(()=>{ rec(r); toggleHeguan(); document.getElementById('h-start-btn').disabled = false; }, 2000); 
+                }
+            }, 150);
+        }
+        window.onload = updateUI;
+    </script>
+</body>
+</html>
