@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智慧助手 V6.7 - 深度復盤版</title>
+    <title>智慧助手 V6.7 - 齒輪增強版</title>
     <style>
         body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto; background: #f0f2f5; margin: 0; padding: 15px; display: flex; justify-content: center; }
         .card { background: white; border-radius: 20px; padding: 20px; width: 100%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 10px solid #28a745; position: relative; }
@@ -16,9 +16,13 @@
         .strategy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
         .strat-btn { background: #e9ecef; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #666; cursor: pointer; }
         .strat-btn.active { background: #007bff; color: white; }
-        .bet-info { margin-bottom: 20px; background: #f8f9fa; padding: 12px; border-radius: 12px; }
+        
+        /* 建議框與嵌入式齒輪 */
+        .bet-info { margin-bottom: 20px; background: #f8f9fa; padding: 12px; border-radius: 12px; position: relative; border: 1px solid #eee; }
         .bet-row { font-size: 18px; margin: 5px 0; font-weight: bold; }
         .highlight-red { font-size: 26px; color: #d9534f; margin-left: 5px; }
+        .gear-btn-inline { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 45px; height: 45px; background: #007bff; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,123,255,0.3); }
+        
         .ladder-hint { font-size: 14px; color: #999; font-weight: normal; }
         .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
         .num-btn { aspect-ratio: 1; border: none; border-radius: 12px; background: #28a745; color: white; font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #1e7e34; }
@@ -28,8 +32,14 @@
         .val-blue { color: #007bff; }
         .val-red { color: #d9534f; }
         .log-container { background: #fafafa; border: 1px solid #eee; border-radius: 10px; height: 160px; overflow-y: scroll; margin-top: 15px; padding: 10px; font-family: monospace; font-size: 12px; text-align: left; }
-        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; color: white; padding: 40px 20px; box-sizing: border-box; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; color: white; padding: 20px; box-sizing: border-box; overflow-y: auto; }
         .warning-box { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; font-size: 14px; font-weight: bold; text-align: center; }
+
+        /* 手動面板專用樣式 */
+        .m-group { background: #222; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #444; }
+        .btn-flex { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .btn-opt { background: #333; border: 1px solid #555; color: white; padding: 12px; border-radius: 8px; min-width: 60px; text-align: center; font-size: 14px; cursor: pointer; }
+        .btn-opt.selected { background: #d9534f !important; border-color: white !important; }
     </style>
 </head>
 <body>
@@ -54,6 +64,7 @@
         <div class="bet-info">
             <div class="bet-row">注碼：<span class="highlight-red" id="next-b">0</span> <span class="ladder-hint" id="l-hint"></span></div>
             <div class="bet-row">建議：<span class="highlight-red" id="next-t">觀察中</span></div>
+            <div class="gear-btn-inline" onclick="toggleManual()">⚙️</div>
         </div>
         <div class="num-grid">
             <button class="num-btn" onclick="rec(1)">1</button>
@@ -74,6 +85,38 @@
         </div>
     </div>
 
+    <div id="m-panel" class="overlay">
+        <div style="text-align: right;"><span onclick="toggleManual()" style="font-size: 45px; cursor: pointer;">×</span></div>
+        <div class="m-group">
+            <div style="color:#ffd700; font-weight:bold; margin-bottom:10px;">功能 1：手動設定本局</div>
+            <div style="font-size:12px; color:#aaa;">修改注碼：</div>
+            <div class="btn-flex">
+                <div class="btn-opt bo" onclick="setMB(100, this)">100</div>
+                <div class="btn-opt bo" onclick="setMB(300, this)">300</div>
+                <div class="btn-opt bo" onclick="setMB(700, this)">700</div>
+                <div class="btn-opt bo" onclick="setMB(1500, this)">1500</div>
+                <div class="btn-opt bo" onclick="setMB(3100, this)">3100</div> </div>
+            <div style="font-size:12px; color:#aaa; margin-top:10px;">修改投注號：</div>
+            <div class="btn-flex">
+                <div class="btn-opt to" onclick="setMT([1,2], this)">1,2</div>
+                <div class="btn-opt to" onclick="setMT([1,3], this)">1,3</div>
+                <div class="btn-opt to" onclick="setMT([2,4], this)">2,4</div>
+                <div class="btn-opt to" onclick="setMT([3,4], this)">3,4</div>
+                <div class="btn-opt to" onclick="setMT([], this)" style="background:#555;">觀望</div> </div>
+        </div>
+        <div class="m-group">
+            <div style="color:#ffd700; font-weight:bold; margin-bottom:10px;">功能 2：補登到場前號碼</div>
+            <p style="font-size:12px; color:#888;">點擊增加歷史數據 (不影響餘額)：</p>
+            <div class="btn-flex">
+                <button class="num-btn" style="width:65px; height:65px;" onclick="fastAdd(1)">1</button>
+                <button class="num-btn" style="width:65px; height:65px;" onclick="fastAdd(2)">2</button>
+                <button class="num-btn" style="width:65px; height:65px;" onclick="fastAdd(3)">3</button>
+                <button class="num-btn" style="width:65px; height:65px;" onclick="fastAdd(4)">4</button>
+            </div>
+        </div>
+        <button onclick="toggleManual()" style="width:100%; padding:15px; background:#007bff; color:white; border:none; border-radius:10px; font-weight:bold;">完成並返回</button>
+    </div>
+
     <div id="h-panel" class="overlay">
         <div style="text-align: right;"><span onclick="toggleHeguan()" style="font-size: 40px; cursor: pointer;">×</span></div>
         <div style="text-align: center; margin-top: 10vh;">
@@ -88,30 +131,36 @@
     <script>
         let capital = 10000, round = 0, step = 0, totalP = 0, peakP = 0, maxD = 0;
         let hist = [], logD = [], strat = 'E', target = [], counts = {1:0, 2:0, 3:0, 4:0};
-        let isStopped = false; 
-        
-        // 額外統計變數用於報表
-        let totalWagered = 0, winCount = 0, loseCount = 0, pauseCount = 0, totalCommission = 0;
-        let stratTracks = []; // 紀錄策略切換
-
+        let isStopped = false, isManualTarget = false; 
         const ladF = [100, 300, 700, 1500, 3100], ladS = [100, 300, 700];
 
-        function setS(s) { 
-            if(isStopped) return; 
-            strat = s; 
-            step = 0; 
-            document.querySelectorAll('.strat-btn').forEach(b => b.classList.remove('active')); 
-            document.getElementById('btn'+s).classList.add('active'); 
-            
-            // 紀錄策略切換軌跡
-            stratTracks.push({ r: round, strat: s, profit: totalP.toFixed(1) });
-            
-            calc(); 
-            updateUI(); 
+        // --- 齒輪專用 JS ---
+        function toggleManual() { let p = document.getElementById('m-panel'); p.style.display = (p.style.display==='block')?'none':'block'; }
+        function setMB(v, el) { 
+            document.querySelectorAll('.bo').forEach(b=>b.classList.remove('selected')); 
+            el.classList.add('selected'); 
+            document.getElementById('next-b').innerText = v; 
         }
+        function setMT(a, el) { 
+            document.querySelectorAll('.to').forEach(b=>b.classList.remove('selected')); 
+            el.classList.add('selected'); 
+            target = a; 
+            isManualTarget = true; 
+            document.getElementById('next-t').innerText = a.length ? a.join(",") : "觀望中"; 
+        }
+        function fastAdd(n) {
+            hist.push(n); round++; [1,2,3,4].forEach(x => x===n?counts[x]=0:counts[x]++);
+            let box = document.getElementById('log-box');
+            box.innerHTML = `<div style="color:#888;">(${round}) [補登] 開:${n}</div>` + box.innerHTML;
+            document.getElementById('round-num').innerText = round;
+            calc();
+        }
+        // ------------------
+
+        function setS(s) { if(isStopped) return; strat = s; step = 0; isManualTarget = false; document.querySelectorAll('.strat-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn'+s).classList.add('active'); calc(); updateUI(); }
         
         function calc() {
-            if(isStopped) return;
+            if(isStopped || isManualTarget) return;
             let last = hist[hist.length - 1];
             let isStreak = hist.length >= 3 && hist.slice(-3).every(x => x === last);
             if (isStreak && ['A', 'C', 'E'].includes(strat)) {
@@ -147,7 +196,7 @@
         function rec(n) {
             if (isStopped) return;
             let lad = (strat === 'E') ? ladS : ladF;
-            let bet = target.length ? lad[step] : 0;
+            let bet = target.length ? parseInt(document.getElementById('next-b').innerText || lad[step]) : 0;
             
             if (bet > (capital + totalP)) {
                 document.getElementById('status-warning').innerText = `🔴 餘額不足 (${bet})`;
@@ -157,57 +206,24 @@
             }
 
             let win = target.includes(n);
-            let p = 0;
-            if (bet) {
-                totalWagered += bet;
-                if (win) {
-                    p = bet * 0.95;
-                    totalCommission += (bet * 0.05);
-                    winCount++;
-                } else {
-                    p = -bet;
-                    loseCount++;
-                }
-            } else {
-                pauseCount++;
-            }
-
+            let p = bet ? (win ? bet * 0.95 : -bet) : 0;
             totalP += p; peakP = Math.max(peakP, totalP); maxD = Math.max(maxD, peakP - totalP);
             
-            let currentBal = (capital + totalP).toFixed(0);
-            let targetStr = target.length ? target.join("/") : "暫停";
-
-            // 存入 Log 數據 (配合 export 欄位)
-            logD.push({ 
-                r: round + 1, 
-                strat: strat, 
-                bet: bet, 
-                target: targetStr, 
-                open: n, 
-                profit: p.toFixed(1), 
-                balance: currentBal 
-            });
+            logD.push({ r: round + 1, s: strat, b: bet, t: target.join("/"), o: n, w: win, p: p.toFixed(1), bal: (capital + totalP).toFixed(0) });
             
-            updateLog(round+1, bet, targetStr, n, win, p, currentBal);
+            updateLog(round+1, strat, bet, n, win, p);
             if (bet) { if (win) step = 0; else { step++; if (step >= lad.length) step = 0; } }
             hist.push(n); round++; [1,2,3,4].forEach(x => x === n ? counts[x]=0 : counts[x]++);
+            
+            isManualTarget = false; // 解鎖
+            document.querySelectorAll('.to, .bo').forEach(b=>b.classList.remove('selected'));
+            
             calc(); updateUI();
         }
 
-        function updateLog(r, b, t, n, w, p, bal) {
-            let box = document.getElementById('log-box'); 
-            if(box.innerText.includes("---")) {
-                box.innerHTML = `<div style="color:#28a745; font-weight:bold; margin-bottom:5px;">📝 實戰回顧記錄 (注碼/押角/結果/盈虧/餘額)：</div>`;
-            }
-            
-            let resIcon = b === 0 ? '⚪' : (w ? '✅' : '❌');
-            let pStr = p >= 0 ? `+${parseFloat(p).toFixed(0)}` : `${parseFloat(p).toFixed(0)}`;
-            let logLine = `<div>#${r} | ${b} / ${t} / 開${n}${resIcon} / ${pStr} / ${bal}</div>`;
-            
-            // 獲取標題後面的內容並插入新紀錄（讓最新紀錄在標題下方第一行）
-            let title = box.firstChild.outerHTML;
-            let currentLogs = box.innerHTML.replace(title, "");
-            box.innerHTML = title + logLine + currentLogs;
+        function updateLog(r, s, b, n, w, p) {
+            let box = document.getElementById('log-box'); if(box.innerText.includes("---")) box.innerText="";
+            box.innerHTML = `<div>(${r}) [${s}] ${b} 開:${n} | ${b===0?'-':(w?'✅':'❌')} ${p.toFixed(0)}</div>` + box.innerHTML;
         }
 
         function updateUI() {
@@ -216,59 +232,27 @@
             document.getElementById('prof').innerText = totalP.toFixed(1);
             document.getElementById('peak').innerText = peakP.toFixed(0);
             document.getElementById('mdd').innerText = ((maxD/(capital+peakP))*100).toFixed(1) + "%";
-            document.getElementById('next-b').innerText = target.length ? ((strat==='E'?ladS:ladF)[step]) : 0;
+            if(!isManualTarget) {
+                document.getElementById('next-b').innerText = target.length ? ((strat==='E'?ladS:ladF)[step]) : 0;
+            }
             document.getElementById('l-hint').innerText = strat==='E' ? "(1-3-7)" : "(1-3-7-15-31)";
         }
 
-        // 置換為深度復盤版本
         function exportCSV() {
             if (logD.length === 0) { alert("無記錄可存檔"); return; }
-
-            let csv = "\uFEFF局數,策略,金額,組合,開獎,盈虧,餘額\n";
-
-            // 每局紀錄
-            logD.forEach(r => {
-                csv += `${r.r},${r.strat},${r.bet},"${r.target}",${r.open},${r.profit},${r.balance}\n`;
-            });
-
-            // 總體統計
-            csv += `\n--- 深度統計報表 ---\n`;
-            csv += `最終餘額,${(capital + totalP).toFixed(0)},總盈虧,${totalP.toFixed(1)},總流水,${totalWagered.toFixed(0)}\n`;
-            csv += `最高高峰,${peakP.toFixed(0)},最大回徹,${maxD.toFixed(0)},付出油水,${totalCommission.toFixed(1)}\n`;
-            csv += `中獎次數,${winCount},勝率,${(winCount/(winCount+loseCount||1)*100).toFixed(1)}%\n`;
-            csv += `沒中次數,${loseCount},暫停局數,${pauseCount}\n`;
-
-            // 策略切換軌跡
-            csv += `\n--- 策略軌跡紀錄 ---\n局數,切換動作,當時累計盈虧\n`;
-            stratTracks.forEach(t => {
-                csv += `${t.r},切換至策略 ${t.strat},${t.profit}\n`;
-            });
-
-            // 號碼出現統計
-            csv += `\n--- 號碼出現統計 ---\n號碼,次數,百分比\n`;
-            [1,2,3,4].forEach(n => {
-                let c = hist.filter(x => x === n).length;
-                let p = hist.length > 0 ? (c / hist.length * 100).toFixed(1) : 0;
-                csv += `${n},${c}次,${p}%\n`;
-            });
-
-            // 產生並下載檔案
+            let csv = "\uFEFF局數,策略,下注金額,投注組合,開獎結果,勝負,盈虧,餘額\n";
+            logD.forEach(row => csv += `${row.r},${row.s},${row.b},${row.t},${row.o},${row.w?'勝':'負'},${row.p},${row.bal}\n`);
             let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            let url = URL.createObjectURL(blob);
             let link = document.createElement("a");
-            link.href = url;
-            link.download = `番攤深度復盤_${new Date().getTime()}.csv`;
-            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `番攤_${new Date().getTime()}.csv`);
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
         }
 
         function confirmReset() {
             if (confirm("重置數據？")) {
-                round = 0; step = 0; totalP = 0; peakP = 0; maxD = 0; isStopped = false;
-                totalWagered = 0; winCount = 0; loseCount = 0; pauseCount = 0; totalCommission = 0;
-                hist = []; logD = []; stratTracks = []; counts = {1:0, 2:0, 3:0, 4:0};
+                round = 0; step = 0; totalP = 0; peakP = 0; maxD = 0; isStopped = false; isManualTarget = false;
+                hist = []; logD = []; counts = {1:0, 2:0, 3:0, 4:0};
                 document.getElementById('log-box').innerText = "--- 數據已重置 ---";
                 document.getElementById('status-warning').style.display = 'none';
                 calc(); updateUI();
@@ -281,28 +265,36 @@
             let jumps = 0;
             for(let i=1; i<sample.length; i++) if(sample[i] !== sample[i-1]) jumps++;
             let jumpRate = (jumps / (sample.length - 1) * 100).toFixed(0);
-
-            let recentLogs = logD.slice(-5);
-            let recentWins = recentLogs.filter(l => l.w).length; 
-            let recentProfit = recentLogs.reduce((sum, l) => sum + parseFloat(l.profit), 0);
-            
+            let recent12 = logD.slice(-12);
+            let profit12 = recent12.reduce((sum, l) => sum + parseFloat(l.p), 0);
+            let wins12 = recent12.filter(l => l.w).length;
+            let winRate12 = ((wins12 / (recent12.length || 1)) * 100).toFixed(0);
             let gHeat = {1:0, 2:0, 3:0, 4:0};
             hist.forEach(n => gHeat[n]++);
             let gMax = [1,2,3,4].sort((a,b) => gHeat[b] - gHeat[a])[0];
+            let sMax = [1,2,3,4].sort((a,b) => (sample.filter(x=>x===b).length) - (sample.filter(x=>x===a).length))[0];
 
-            let report = `【深度診斷】\n`;
-            report += `當前節奏：${jumpRate}% (${jumpRate >= 70 ? '強跳' : jumpRate <= 30 ? '長龍' : '平穩'})\n`;
-            report += `近5局盈虧：${recentProfit.toFixed(0)}\n`;
-            report += `全局熱號：[${gMax}]\n----------------\n`;
+            let report = `【全維度實戰診斷】\n`;
+            report += `📊 盤勢：${jumpRate}% (${jumpRate >= 70 ? '強跳' : jumpRate <= 30 ? '長龍' : '震盪'})\n`;
+            report += `💰 近12局盈虧：${profit12.toFixed(0)} (${winRate12}%勝)\n`;
+            report += `🔥 熱號共振：全局[${gMax}] / 短期[${sMax}]\n`;
+            report += `----------------\n`;
 
-            let advice = jumpRate >= 70 ? "統計建議：[A 避跳]" : (jumpRate <= 30 ? "統計建議：[B 追龍]" : "盤勢平穩建議維持");
-            alert(report + advice);
+            let advice = "";
+            let status = (profit12 < 0) ? "🔴 目前處於【逆風期】，建議換路。" : "🟢 目前處於【順風期】，建議維持。";
+
+            if (profit12 < 0 && wins12 < 5) {
+                if (jumpRate >= 70) advice = "建議變陣至：[A 避跳]";
+                else if (jumpRate <= 30) advice = "建議變陣至：[B 追龍]";
+                else advice = "建議變陣至：[F 平衡]";
+            } else {
+                if (gMax === sMax) advice = "數據高度契合，建議維持或使用 [D 買熱]";
+                else advice = "盤勢平穩，推薦使用 [E 反向限壓]";
+            }
+            alert(report + status + "\n" + advice + `\n\n累計盈虧總計：${totalP.toFixed(1)}`);
         }
 
-        function toggleHeguan() { 
-            let p = document.getElementById('h-panel'); 
-            p.style.display = (p.style.display==='block')?'none':'block'; 
-        }
+        function toggleHeguan() { let p = document.getElementById('h-panel'); p.style.display = (p.style.display==='block')?'none':'block'; }
 
         function hRun() {
             document.getElementById('h-start-btn').disabled = true;
